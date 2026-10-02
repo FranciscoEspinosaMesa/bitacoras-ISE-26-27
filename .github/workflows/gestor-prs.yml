@@ -1,9 +1,6 @@
 name: Gestor Automático de PRs de Alumnos
 
 on:
-  # Usamos pull_request_target en lugar de pull_request para que la Acción
-  # tenga permisos de escritura (necesarios para comentar, cerrar o hacer merge)
-  # incluso cuando el PR viene de un fork externo.
   pull_request_target:
     types: [opened, synchronize]
 
@@ -21,10 +18,8 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          echo "Revisando estado de conflictos del PR #$PR_NUMBER..."
+          echo "Revisando estado de conflictos del PR #$PR_NUMBER en $REPO..."
           
-          # GitHub calcula de forma asíncrona si hay conflictos.
-          # Al crear el PR, el estado puede ser 'null'. Hacemos un bucle para esperar la confirmación.
           MERGEABLE="null"
           INTENTOS=0
           
@@ -38,13 +33,14 @@ jobs:
 
           if [ "$MERGEABLE" == "true" ]; then
             echo "Sin conflictos. Fusionando PR..."
-            # Hace un merge commit estándar. Puedes cambiar --merge por --squash o --rebase si lo prefieres.
-            gh pr merge $PR_NUMBER --merge --admin
+            # Añadimos -R $REPO para decirle exactamente en qué repositorio actuar
+            gh pr merge $PR_NUMBER --merge --admin -R $REPO
             
           elif [ "$MERGEABLE" == "false" ]; then
             echo "Conflictos detectados. Cerrando PR..."
-            gh pr comment $PR_NUMBER --body "Se ha rechazado tu pull request. Debes asegurarte de sincronizar tu fork del repositorio del profesor justo antes de hacer el pull request."
-            gh pr close $PR_NUMBER
+            # Añadimos -R $REPO también aquí
+            gh pr comment $PR_NUMBER --body "Se ha rechazado tu pull request. Debes asegurarte de sincronizar tu fork del repositorio del profesor justo antes de hacer el pull request." -R $REPO
+            gh pr close $PR_NUMBER -R $REPO
             
           else
             echo "No se pudo determinar el estado de los conflictos."
